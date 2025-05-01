@@ -75,14 +75,6 @@ community.login(
                 JSON.stringify(orderedNewPrices, null, 4),
                 (err) => err && console.error(err)
             );
-
-            // Save price data to one json file with the current date as name (YYYY-MM-DD format).
-            const currentDate = new Date().toISOString().split('T')[0];
-            fs.writeFile(
-                `${dirPrices}/${currentDate}.json`,
-                JSON.stringify(orderedNewPrices, null, 4),
-                (err) => err && console.error(err)
-            );
         } catch (error) {
             console.error("An error occurred while processing items:", error);
         }
