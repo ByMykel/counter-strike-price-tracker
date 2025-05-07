@@ -1,9 +1,7 @@
 const SteamCommunity = require("steamcommunity");
 const fs = require("fs");
-const sha1 = require("js-sha1");
 const dir = `./static`;
 const dirPrices = `./static/prices`;
-const dirPricehistory = `./static/pricehistory`;
 const ITEMS_API_BASE_URL =
     "https://raw.githubusercontent.com/ByMykel/CSGO-API/main/public/api/en";
 const MARKET_BASE_URL = "https://steamcommunity.com/market";
@@ -27,10 +25,6 @@ if (!fs.existsSync(dir)) {
 
 if (!fs.existsSync(dirPrices)) {
     fs.mkdirSync(dirPrices);
-}
-
-if (!fs.existsSync(dirPricehistory)) {
-    fs.mkdirSync(dirPricehistory);
 }
 
 let community = new SteamCommunity();
@@ -193,15 +187,6 @@ async function processBatch(batch) {
                     priceDataByItemHashName[name] = {
                         steam: getWeightedAveragePrice(prices, lastEver)
                     };
-                    const hashedName = sha1(name);
-                    // TODO: Try to save all data prices.
-                    // For testing purposes just add the last 500 prices.
-                    const filteredPrices = prices.splice(-500);
-                    return fs.writeFile(
-                        `${dir}/pricehistory/${hashedName}.json`,
-                        JSON.stringify(filteredPrices),
-                        (err) => err && console.error(err)
-                    );
                 }
             })
             .catch((error) => console.log(`Error processing ${name}:`, error))
