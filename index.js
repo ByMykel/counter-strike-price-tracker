@@ -185,7 +185,7 @@ async function processBatch(batch) {
             .then(({ prices, lastEver }) => {
                 if (prices.length > 0) {
                     priceDataByItemHashName[name] = {
-                        steam: getWeightedAveragePrice(prices, lastEver)
+                        steam: getMedianPrice(prices, lastEver)
                     };
                 }
             })
@@ -237,29 +237,36 @@ async function processItems(items, startIndex, batchSize = 1) {
     }
 }
 
-function getWeightedAveragePrice(data, lastEver) {
+function getMedianPrice(data, lastEver) {
     const now = Date.now();
 
-    const calculateWAP = (days) => {
+    const calculateMedian = (days) => {
         const limit = now - days * 24 * 60 * 60 * 1000;
-        let totalVolume = 0;
-        let totalPriceVolumeProduct = 0;
+        const prices = [];
 
-        data.forEach(({ time, value, volume }) => {
+        for (const { time, value, volume } of data) {
             if (time >= limit) {
-                totalPriceVolumeProduct += value * volume;
-                totalVolume += volume;
+                for (let i = 0; i < volume; i++) {
+                    prices.push(value);
+                }
             }
-        });
+        }
 
-        return totalVolume > 0 ? totalPriceVolumeProduct / totalVolume : null;
+        if (prices.length === 0) return null;
+
+        prices.sort((a, b) => a - b);
+
+        const mid = Math.floor(prices.length / 2);
+        return prices.length % 2 === 0
+            ? (prices[mid - 1] + prices[mid]) / 2
+            : prices[mid];
     };
 
     return {
-        last_24h: calculateWAP(1),
-        last_7d: calculateWAP(7),
-        last_30d: calculateWAP(30),
-        last_90d: calculateWAP(90),
+        last_24h: calculateMedian(1),
+        last_7d: calculateMedian(7),
+        last_30d: calculateMedian(30),
+        last_90d: calculateMedian(90),
         last_ever: lastEver
     };
 }
