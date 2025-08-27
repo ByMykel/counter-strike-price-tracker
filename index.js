@@ -133,11 +133,11 @@ async function getAllItemNames() {
     ]).then((results) => results.flat().filter(Boolean));
 }
 
-async function fetchPrice(name) {
+async function fetchPrice(marketHashName) {
     return new Promise((resolve, reject) => {
         community.request.get(
             `${MARKET_BASE_URL}/pricehistory/?appid=730&market_hash_name=${encodeURIComponent(
-                name
+                marketHashName
             )}`,
             (err, res) => {
                 if (err) {
@@ -154,7 +154,7 @@ async function fetchPrice(name) {
                         );
                         console.log(
                             `${MARKET_BASE_URL}/pricehistory/?appid=730&market_hash_name=${encodeURIComponent(
-                                name
+                                marketHashName
                             )}`
                         );
                         resolve({ prices: [], lastEver: null });
@@ -167,6 +167,9 @@ async function fetchPrice(name) {
                             volume: parseInt(volume),
                         })
                     );
+                    if (prices.length == 0) {
+                        console.log(`[INFO] No prices found for '${marketHashName}' market_hash_name`)
+                    }
                     resolve({
                         prices,
                         lastEver: prices.length > 0 ? prices[prices.length - 1].value : null
@@ -180,16 +183,16 @@ async function fetchPrice(name) {
 }
 
 async function processBatch(batch) {
-    const promises = batch.map((name) =>
-        fetchPrice(name)
+    const promises = batch.map((marketHashName) =>
+        fetchPrice(marketHashName)
             .then(({ prices, lastEver }) => {
                 if (prices.length > 0) {
-                    priceDataByItemHashName[name] = {
+                    priceDataByItemHashName[marketHashName] = {
                         steam: getMedianPrice(prices, lastEver)
                     };
                 }
             })
-            .catch((error) => console.log(`Error processing ${name}:`, error))
+            .catch((error) => console.log(`Error processing ${marketHashName}:`, error))
     );
     await Promise.all(promises);
 }
