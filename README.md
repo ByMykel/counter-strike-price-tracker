@@ -3,7 +3,7 @@
 This repository provides access to price data for Counter-Strike items via static JSON files. Here's how you can fetch the data:
 
 >[!NOTE]
->All prices are listed in dollars
+>All prices are listed in USD
 
 ---
 
