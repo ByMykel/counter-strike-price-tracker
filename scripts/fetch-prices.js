@@ -6,7 +6,7 @@ const https = require("https");
 const OUTPUT_PATH = path.resolve(__dirname, "..", "static", "latest.json");
 
 const DELAY_MS = 8000;
-const MAX_RETRIES = 0;
+const MAX_RETRIES = 2;
 const PAGE_SIZE = 10;
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -128,6 +128,7 @@ async function fetchAllPrices(cookies) {
     process.on("SIGTERM", onExit);
 
     let totalCount = Infinity;
+    let rateLimitRetries = 0;
 
     console.log("Fetching CS2 market prices...");
 
@@ -149,8 +150,15 @@ async function fetchAllPrices(cookies) {
                 console.log("Empty results response:", JSON.stringify(data));
 
                 if (totalCount !== Infinity && data.total_count === 0) {
-                    console.log("Rate limited (total_count dropped to 0), saving progress and retrying after longer delay...");
+                    rateLimitRetries++;
+                    console.log(`Rate limited (total_count dropped to 0), attempt ${rateLimitRetries}/${MAX_RETRIES}...`);
                     save(prices, start);
+
+                    if (rateLimitRetries >= MAX_RETRIES) {
+                        console.log("Max rate limit retries reached, exiting.");
+                        process.exit(1);
+                    }
+
                     await delay(DELAY_MS * 3);
                     continue;
                 }
@@ -158,6 +166,8 @@ async function fetchAllPrices(cookies) {
                 console.log("No more results, stopping.");
                 break;
             }
+
+            rateLimitRetries = 0;
 
             for (const item of data.results) {
                 const name = item.hash_name;
