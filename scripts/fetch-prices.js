@@ -146,6 +146,7 @@ async function fetchAllPrices(cookies) {
             }
 
             if (!data.results || data.results.length === 0) {
+                console.log("Empty results response:", JSON.stringify(data));
                 console.log("No more results, stopping.");
                 break;
             }
