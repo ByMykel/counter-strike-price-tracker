@@ -149,7 +149,8 @@ async function fetchAllPrices(cookies) {
                 console.log("Empty results response:", JSON.stringify(data));
 
                 if (totalCount !== Infinity && data.total_count === 0) {
-                    console.log("Rate limited (total_count dropped to 0), retrying after longer delay...");
+                    console.log("Rate limited (total_count dropped to 0), saving progress and retrying after longer delay...");
+                    save(prices, start);
                     await delay(DELAY_MS * 3);
                     continue;
                 }
