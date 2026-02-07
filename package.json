@@ -1,0 +1,11 @@
+{
+  "name": "counter-strike-price-tracker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "fetch": "node scripts/fetch-prices.js"
+  },
+  "dependencies": {
+    "steam-user": "^5.3.0"
+  }
+}
