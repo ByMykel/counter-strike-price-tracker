@@ -5,7 +5,7 @@ const https = require("https");
 
 const OUTPUT_PATH = path.resolve(__dirname, "..", "static", "latest.json");
 
-const DELAY_MS = 6000;
+const DELAY_MS = 8000;
 const MAX_RETRIES = 0;
 const PAGE_SIZE = 10;
 
@@ -147,6 +147,13 @@ async function fetchAllPrices(cookies) {
 
             if (!data.results || data.results.length === 0) {
                 console.log("Empty results response:", JSON.stringify(data));
+
+                if (totalCount !== Infinity && data.total_count === 0) {
+                    console.log("Rate limited (total_count dropped to 0), retrying after longer delay...");
+                    await delay(DELAY_MS * 3);
+                    continue;
+                }
+
                 console.log("No more results, stopping.");
                 break;
             }
