@@ -5,9 +5,11 @@ const https = require("https");
 
 const OUTPUT_PATH = path.resolve(__dirname, "..", "static", "latest.json");
 
-const DELAY_MS = 8000;
-const MAX_RETRIES = 2;
+const DELAY_MS = 5000;
+const MAX_RETRIES = 5;
 const PAGE_SIZE = 10;
+const MAX_RUNTIME_MS = 90 * 60 * 1000; // 90 minutes
+const SAVE_EVERY = 100; // checkpoint every N items
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -127,13 +129,22 @@ async function fetchAllPrices(cookies) {
     process.on("SIGINT", onExit);
     process.on("SIGTERM", onExit);
 
+    const startTime = Date.now();
     let totalCount = Infinity;
     let rateLimitRetries = 0;
+    let itemsSinceLastSave = 0;
 
     console.log("Fetching CS2 market prices...");
 
     try {
         while (start < totalCount) {
+            // Check time budget before each request
+            if (Date.now() - startTime >= MAX_RUNTIME_MS) {
+                console.log("Time budget reached, saving progress for next run...");
+                save(prices, start);
+                return;
+            }
+
             const url = `https://steamcommunity.com/market/search/render/?appid=730&norender=1&currency=1&count=${PAGE_SIZE}&start=${start}`;
             console.log(
                 `Fetching items ${start}–${start + PAGE_SIZE}...`
@@ -155,11 +166,13 @@ async function fetchAllPrices(cookies) {
                     save(prices, start);
 
                     if (rateLimitRetries >= MAX_RETRIES) {
-                        console.log("Max rate limit retries reached, exiting.");
-                        process.exit(1);
+                        console.log("Max rate limit retries reached, saving progress and exiting.");
+                        return;
                     }
 
-                    await delay(DELAY_MS * 3);
+                    const waitTime = 60000 * Math.pow(2, rateLimitRetries - 1);
+                    console.log(`Waiting ${waitTime / 1000}s before retry...`);
+                    await delay(waitTime);
                     continue;
                 }
 
@@ -178,6 +191,14 @@ async function fetchAllPrices(cookies) {
             }
 
             start += PAGE_SIZE;
+            itemsSinceLastSave += data.results.length;
+
+            // Periodic checkpoint save
+            if (itemsSinceLastSave >= SAVE_EVERY) {
+                console.log(`Checkpoint: saving progress at offset ${start}...`);
+                save(prices, start < totalCount ? start : 0);
+                itemsSinceLastSave = 0;
+            }
 
             if (start < totalCount) {
                 await delay(DELAY_MS);
