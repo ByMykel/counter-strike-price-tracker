@@ -13,6 +13,33 @@ const SAVE_EVERY = 100; // checkpoint every N items
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+function getMostRecentMonday() {
+    const now = new Date();
+    const day = now.getUTCDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    const daysSinceMonday = (day + 6) % 7;
+    const monday = new Date(now);
+    monday.setUTCDate(monday.getUTCDate() - daysSinceMonday);
+    monday.setUTCHours(0, 0, 0, 0);
+    return monday;
+}
+
+function determineRunAction(metadata) {
+    if (!metadata) return { action: "reset" };
+
+    const resumeFrom = metadata.resume_from || 0;
+    const updatedAt = metadata.updated_at ? new Date(metadata.updated_at) : null;
+    const monday = getMostRecentMonday();
+
+    if (!updatedAt || isNaN(updatedAt.getTime())) return { action: "reset" };
+
+    const isThisWeek = updatedAt >= monday;
+
+    if (resumeFrom > 0 && !isThisWeek) return { action: "reset" };
+    if (resumeFrom > 0 && isThisWeek) return { action: "resume" };
+    if (resumeFrom === 0 && isThisWeek) return { action: "skip" };
+    return { action: "reset" };
+}
+
 function loadExisting() {
     try {
         if (fs.existsSync(OUTPUT_PATH)) {
@@ -23,12 +50,13 @@ function loadExisting() {
                         ? data.prices
                         : {},
                 resumeFrom: data.metadata?.resume_from || 0,
+                metadata: data.metadata || null,
             };
         }
     } catch {
         // Corrupted file — start fresh
     }
-    return { prices: {}, resumeFrom: 0 };
+    return { prices: {}, resumeFrom: 0, metadata: null };
 }
 
 function save(prices, resumeFrom = 0) {
@@ -104,17 +132,31 @@ async function fetchWithRetry(url, cookies, retries = MAX_RETRIES) {
 }
 
 async function fetchAllPrices(cookies) {
-    const { prices, resumeFrom } = loadExisting();
-    const existingCount = Object.keys(prices).length;
-    if (existingCount > 0) {
-        console.log(
-            `Loaded ${existingCount} existing prices from latest.json`
-        );
+    let { prices, resumeFrom, metadata } = loadExisting();
+    const forceFetch = process.env.FORCE_FETCH === "true";
+
+    let runAction = determineRunAction(metadata);
+    if (forceFetch && runAction.action !== "resume") {
+        console.log("FORCE_FETCH enabled — overriding to reset.");
+        runAction = { action: "reset" };
     }
 
-    let start = resumeFrom;
-    if (start > 0) {
-        console.log(`Resuming from offset ${start}`);
+    console.log(`Run action: ${runAction.action}`);
+
+    let start;
+    switch (runAction.action) {
+        case "skip":
+            console.log("All items already fetched this week. Skipping.");
+            return;
+        case "reset":
+            console.log("Starting fresh fetch cycle.");
+            prices = {};
+            start = 0;
+            break;
+        case "resume":
+            console.log(`Resuming from offset ${resumeFrom} (${Object.keys(prices).length} existing prices).`);
+            start = resumeFrom;
+            break;
     }
 
     // Save on interrupt

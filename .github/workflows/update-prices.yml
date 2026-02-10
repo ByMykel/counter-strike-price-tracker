@@ -4,6 +4,11 @@ on:
   schedule:
     - cron: '0 */4 * * *'
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Force a fresh fetch (ignores weekly skip logic)'
+        required: false
+        default: 'false'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -25,6 +30,8 @@ jobs:
 
       - name: Fetch prices
         run: npm install && node scripts/fetch-prices.js '${{ secrets.USERNAME }}' '${{ secrets.PASSWORD }}'
+        env:
+          FORCE_FETCH: ${{ github.event.inputs.force || 'false' }}
 
       - name: Commit and push if changed
         uses: stefanzweifel/git-auto-commit-action@v4
