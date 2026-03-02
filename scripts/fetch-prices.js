@@ -149,8 +149,7 @@ async function fetchAllPrices(cookies) {
             console.log("All items already fetched this week. Skipping.");
             return;
         case "reset":
-            console.log("Starting fresh fetch cycle.");
-            prices = {};
+            console.log("Starting fresh fetch cycle (keeping existing prices).");
             start = 0;
             break;
         case "resume":
