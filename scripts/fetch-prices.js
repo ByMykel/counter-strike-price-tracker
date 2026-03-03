@@ -201,9 +201,13 @@ async function fetchAllPrices(cookies) {
             if (!data.results || data.results.length === 0) {
                 console.log("Empty results response:", JSON.stringify(data));
 
-                if (totalCount !== Infinity && data.total_count === 0) {
+                // Empty results but we haven't reached the end — treat as rate limit/timeout
+                if (totalCount !== Infinity && start < totalCount) {
                     rateLimitRetries++;
-                    console.log(`Rate limited (total_count dropped to 0), attempt ${rateLimitRetries}/${MAX_RETRIES}...`);
+                    const reason = data.total_count === 0
+                        ? "total_count dropped to 0"
+                        : `empty results at ${start}/${totalCount}`;
+                    console.log(`Rate limited (${reason}), attempt ${rateLimitRetries}/${MAX_RETRIES}...`);
                     save(prices, start);
 
                     if (rateLimitRetries >= MAX_RETRIES) {
